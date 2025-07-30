@@ -1,0 +1,8 @@
+streamlit
+PyPDF2
+numpy
+faiss-cpu
+langchain-google-genai
+google-generativeai
+requests
+typing-extensions
