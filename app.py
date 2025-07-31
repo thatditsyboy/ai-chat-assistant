@@ -9,6 +9,48 @@ import google.generativeai as genai
 import requests
 import json
 
+# 1. Must be the very first Streamlit command!
+st.set_page_config(page_title="🧠 Office Chatbot", layout="wide")
+
+# 2. After set_page_config: CSS for full-width effect
+st.markdown("""
+    <style>
+    .main {
+        padding-left: 1vw !important;
+        padding-right: 1vw !important;
+        max-width: 100vw;
+    }
+    .block-container {
+        padding-top: 1.2rem;
+        padding-bottom: 0.7rem;
+        padding-left: 0.7rem !important;
+        padding-right: 0.7rem !important;
+        width: 100vw;
+    }
+    .element-container { width: 100%; }
+    .stMarkdown { font-size: 16px; }
+    .section-header {
+        font-weight:700;
+        font-size:17px;
+        margin-bottom: 8px;
+        margin-top: 2px;
+    }
+    .chat-row {
+        margin-top: 1.1em;
+        margin-bottom: 1.4em;
+    }
+    .user-block {
+        margin-bottom: 0.5em;
+        margin-top: 0.7em;
+    }
+    .attachment-block {
+        margin-bottom: 0.7em;
+        color: #68696b;
+        font-size: 15px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # --- Load API Keys ---
 GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
 PERPLEXITY_API_KEY = st.secrets.get("PERPLEXITY_API_KEY", "")
@@ -18,7 +60,6 @@ if not GEMINI_API_KEY or not PERPLEXITY_API_KEY or not GOOGLE_API_KEY:
     st.stop()
 genai.configure(api_key=GEMINI_API_KEY)
 
-# --- Fun Greetings (Randomize) ---
 greetings_list = [
     "📈 Meetings don’t end. They just get forwarded. Let’s be useful for once.",
     "🧾 Today’s agenda: 1. Survive. 2. Assist you. 3. Coffee.",
@@ -117,33 +158,23 @@ def ask_perplexity(question, context=None):
     except Exception as e:
         return f"Perplexity error: {e}"
 
-# --- UI Styling ---
-st.set_page_config(page_title="🧠 Office Chatbot", layout="centered")
-st.markdown("""
-    <style>
-    .stMarkdown { font-size: 16px; }
-    .section-header {
-        font-weight:700;
-        font-size:17px;
-        margin-bottom: 8px;
-        margin-top: 2px;
-    }
-    .chat-row {
-        margin-top: 1.1em;
-        margin-bottom: 1.4em;
-    }
-    .user-block {
-        margin-bottom: 0.5em;
-        margin-top: 0.7em;
-    }
-    .attachment-block {
-        margin-bottom: 0.7em;
-        color: #68696b;
-        font-size: 15px;
-    }
-    /* No color override! Leave as inherited! */
-    </style>
-""", unsafe_allow_html=True)
+def summarize_common_points(gemini_resp, perplexity_resp):
+    system_prompt = (
+        "Here are two different AI responses to the same question. "
+        "Summarize in detailed manner ONLY the points that are common or nearly identical between both answers. "
+        "Label this: 'Executive Summary'."
+    )
+    combined = (
+        f"AI Response 1:\n{gemini_resp}\n\n"
+        f"AI Response 2:\n{perplexity_resp}\n\n"
+        "Now, " + system_prompt
+    )
+    try:
+        model = genai.GenerativeModel("models/gemini-2.5-pro")
+        resp = model.generate_content(combined)
+        return resp.text.strip()
+    except Exception as e:
+        return f"Crux error: {e}"
 
 # --- Central Heading & Tagline ---
 st.markdown("<h1 style='text-align:center; margin-bottom:0.1em;'>💬Chat Assistant</h1>", unsafe_allow_html=True)
@@ -193,10 +224,12 @@ if ask_btn and query.strip():
     with st.spinner("Thinking..."):
         gemini_resp = ask_gemini(query, context)
         perplexity_resp = ask_perplexity(query, context)
+        crux = summarize_common_points(gemini_resp, perplexity_resp)
     st.session_state.history.append({
         "query": query,
         "gemini": gemini_resp,
         "perplexity": perplexity_resp,
+        "crux": crux,
         "files": [f.name for f in uploaded_files] if uploaded_files else []
     })
 
@@ -206,11 +239,19 @@ for chat in reversed(st.session_state.history):
     st.markdown(f"<div class='user-block'><strong>🧑‍💼 You:</strong> {chat['query']}</div>", unsafe_allow_html=True)
     if chat.get("files"):
         st.markdown(f"<div class='attachment-block'>Attached files: {', '.join(chat['files'])}</div>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2, gap="large")
-    with col1:
+
+    # Response columns
+    cols = st.columns(2, gap="large")
+    with cols[0]:
         st.markdown("<div class='section-header'>🔮 Gemini 2.5 Pro</div>", unsafe_allow_html=True)
         st.markdown(chat['gemini'])
-    with col2:
+    with cols[1]:
         st.markdown("<div class='section-header'>🛰️ Perplexity Sonar</div>", unsafe_allow_html=True)
         st.markdown(chat['perplexity'])
-    st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)  # Space between turns
+
+    # Full-width "crux"
+    st.markdown('<div style="height: 12px;"></div>', unsafe_allow_html=True)
+    st.markdown("<div class='section-header' style='color:  #FFFFFF;font-weight: 700; font-size: 18px;'>🤝Executive Summary:</div>", unsafe_allow_html=True)
+    st.write(chat.get('crux', 'No common points found.'))
+
+    st.markdown('<div style="height: 16px;"></div>', unsafe_allow_html=True)
