@@ -6,3 +6,5 @@ langchain-google-genai
 google-generativeai
 requests
 typing-extensions
+pandas
+openpyxl
