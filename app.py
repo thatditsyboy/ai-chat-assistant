@@ -251,7 +251,7 @@ for chat in reversed(st.session_state.history):
 
     # Full-width "crux"
     st.markdown('<div style="height: 12px;"></div>', unsafe_allow_html=True)
-    st.markdown("<div class='section-header' style='color:  #FFFFFF;font-weight: 700; font-size: 18px;'>🤝Executive Summary:</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-header' style='color:  #FFFFFF;font-weight: 700; font-size: 18px;'>🤝COMMON CRUX:</div>", unsafe_allow_html=True)
     st.write(chat.get('crux', 'No common points found.'))
 
     st.markdown('<div style="height: 16px;"></div>', unsafe_allow_html=True)
